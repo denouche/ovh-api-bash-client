@@ -11,14 +11,12 @@ LIBS="libs"
 
 API_URL="https://api.ovh.com/1.0"
 API_CREAT_APP_URL="https://api.ovh.com/createApp/"
-GET_IP_URL="http://ipecho.net/plain"
 CURRENT_PATH="$(dirname $0)"
 
 
 # THESE VARS WILL BE USED LATER
 METHOD="GET"
 URL="/me"
-IP=""
 TIME=""
 SIGDATA=""
 POST_DATA=""
@@ -78,11 +76,6 @@ initApplication()
     fi
 }
 
-updateIp()
-{
-    IP=$(wget -q -O - $GET_IP_URL)
-}
-
 updateTime()
 {
     TIME=$(date '+%s')
@@ -98,11 +91,11 @@ help()
 {
     echo 
     echo "Help: possible arguments are:"
-    echo "  --url       : the api to call, for example /domains (default is /me)"
-    echo "  --method    : the method to use, for example POST (default is GET)"
-    echo "  --data      : the data body to send with the request"
-    echo "  --init      : to initialize the consumer key"
-    echo "  --initApp   : to initialize the API application"
+    echo "  --url <url>         : the API URL to call, for example /domains (default is /me)"
+    echo "  --method <method>   : the HTTP method to use, for example POST (default is GET)"
+    echo "  --data <JSON data>  : the data body to send with the request"
+    echo "  --init              : to initialize the consumer key"
+    echo "  --initApp           : to initialize the API application"
     echo
 }
 
