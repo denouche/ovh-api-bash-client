@@ -8,7 +8,7 @@ Initialize
 
 ### Retrieve dependency
 
-First in order to retrieve needed dependecy, run:
+First in order to retrieve needed dependency, run:
 ```
     make
 ```
