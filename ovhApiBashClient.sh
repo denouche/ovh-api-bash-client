@@ -11,7 +11,7 @@ LIBS="libs"
 
 API_URL="https://api.ovh.com/1.0"
 API_CREAT_APP_URL="https://api.ovh.com/createApp/"
-CURRENT_PATH="$(dirname $0)"
+CURRENT_PATH="$(pwd)"
 
 
 # THESE VARS WILL BE USED LATER
