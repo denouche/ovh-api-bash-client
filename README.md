@@ -6,6 +6,13 @@ A bash client for OVH API (https://api.ovh.com/)
 Initialize
 ----------
 
+### Retrieve dependency
+
+First in order to retrieve needed dependecy, run:
+```
+    make
+```
+
 ### Create an OVH API Application
 
 In order to create a new OVH API application, run:
