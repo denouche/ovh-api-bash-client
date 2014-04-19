@@ -1,4 +1,4 @@
-ovhApiBashClient
+ovh API Bash client
 ================
 
 A bash client for OVH API (https://api.ovh.com/)
@@ -17,14 +17,14 @@ First in order to retrieve needed dependency, run:
 
 In order to create a new OVH API application, run:
 ```
-    ./ovhApiBashClient.sh --initApp
+    ./ovh-api-bash-client.sh --initApp
 ```
 
 ### Create a Consumer Key
 
 In order to create a new consumer key, run:
 ```
-    ./ovhApiBashClient.sh --init
+    ./ovh-api-bash-client.sh --init
 ```
 
 Options
@@ -46,16 +46,16 @@ Usage
 
 To make a basic call on GET /me just run:
 ```
-    ./ovhApiBashClient.sh
+    ./ovh-api-bash-client.sh
 ```
 
 To retrieve your domain list, run:
 ```
-    ./ovhApiBashClient.sh --url "/domain"
+    ./ovh-api-bash-client.sh --url "/domain"
 ```
 
 To activate the monitoring on your dedicated server, run:
 ```
-    ./ovhApiBashClient.sh --method PUT --url "/dedicated/server/ns00000.ovh.net" --data '{"monitoring": true}'
+    ./ovh-api-bash-client.sh --method PUT --url "/dedicated/server/ns00000.ovh.net" --data '{"monitoring": true}'
 ```
 
