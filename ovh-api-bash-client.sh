@@ -147,7 +147,10 @@ request()
     updateTime
     updateSignData "$METHOD" "$URL" "$POST_DATA"
     
-    curl -s -X $METHOD --header 'Content-Type:application/json;charset=utf-8' --header "X-Ovh-Application:$OVH_APP_KEY" --header "X-Ovh-Timestamp:$TIME" --header "X-Ovh-Signature:$SIG" --header "X-Ovh-Consumer:$OVH_CONSUMER_KEY" --data "$POST_DATA" ${API_URL}$URL
+    RESPONSE=$(curl -s -w "\n%{http_code}\n" -X $METHOD --header 'Content-Type:application/json;charset=utf-8' --header "X-Ovh-Application:$OVH_APP_KEY" --header "X-Ovh-Timestamp:$TIME" --header "X-Ovh-Signature:$SIG" --header "X-Ovh-Consumer:$OVH_CONSUMER_KEY" --data "$POST_DATA" ${API_URL}$URL)
+    RESPONSE_STATUS=$(echo "$RESPONSE" | sed -n '$p')
+    RESPONSE_CONTENT=$(echo "$RESPONSE" | sed '$d')
+    echo "$RESPONSE_STATUS $RESPONSE_CONTENT"
 }
 
 getJSONFieldString()
@@ -173,7 +176,6 @@ main()
         echo -e "No consumer key, please call to initialize it:\n$0 --init"
     else
         request $METHOD $URL
-        echo
     fi
 }
 
