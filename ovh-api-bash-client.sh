@@ -38,12 +38,12 @@ isTargetValid()
         if [ $i == "$TARGET" ]
         then
             VALID=1
+            break
         fi
     done
 
     if [ $VALID -eq 0 ]
     then
-        echo "then"
         echo "Error: $TARGET is not a valid target, accepted values are: ${TARGETS[@]}"
         echo
         help
@@ -53,7 +53,7 @@ isTargetValid()
 
 createApp()
 {
-    echo "For which OVH API do you want to create a new API Application? (EU/CA)"
+    echo "For which OVH API do you want to create a new API Application? ($( echo ${TARGETS[@]} | sed 's/\s/|/g' ))"
     while [ -z "$NEXT" ]
     do
         read NEXT
@@ -133,7 +133,7 @@ help()
     echo "  --url <url>         : the API URL to call, for example /domains (default is /me)"
     echo "  --method <method>   : the HTTP method to use, for example POST (default is GET)"
     echo "  --data <JSON data>  : the data body to send with the request"
-    echo "  --target <EU|CA>    : the target API (default is EU)"
+    echo "  --target <$( echo ${TARGETS[@]} | sed 's/\s/|/g' )>    : the target API (default is EU)"
     echo "  --init              : to initialize the consumer key"
     echo "  --initApp           : to initialize the API application"
     echo
