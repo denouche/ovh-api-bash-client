@@ -39,10 +39,12 @@ createApp()
     echo
     echo "Do you also need to create a consumer key? (y/n)"
     read NEXT
-    if [ $( echo $NEXT | tr [:upper:] [:lower:] ) = y ]
+    if [ -n "$NEXT" ] && [ $( echo $NEXT | tr [:upper:] [:lower:] ) = y ]
     then
         initApplication
         createConsumerKey
+    else
+        echo -e "OK, no consumer key created for now.\nYou will be able to initiaze the consumer key later calling :\n$0 --init"
     fi
 }
 
