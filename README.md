@@ -35,6 +35,7 @@ Possible arguments are:
     --url <url>         : the API URL to call, for example /domains (default is /me)
     --method <method>   : the HTTP method to use, for example POST (default is GET)
     --data <JSON data>  : the data body to send with the request
+    --target <CA|EU>    : the target API (default is EU)
     --init              : to initialize the consumer key
     --initApp           : to initialize the API application
 ```
