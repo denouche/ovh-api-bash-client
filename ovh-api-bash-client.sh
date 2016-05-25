@@ -203,7 +203,7 @@ getJSONFieldString()
     JSON="$1"
     FIELD="$2"
     RESULT=$(echo $JSON | $CURRENT_PATH/$LIBS/JSON.sh | grep "\[\"$FIELD\"\]" | sed -r "s/\[\"$FIELD\"\]\s+(.*)/\1/")
-    echo ${RESULT:1:-1}
+    echo ${RESULT:1:${#RESULT}-2}
 }
 
 main()
