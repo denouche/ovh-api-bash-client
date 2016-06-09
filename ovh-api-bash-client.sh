@@ -18,7 +18,7 @@ API_URLS[EU]="https://api.ovh.com/1.0"
 declare -A API_CREATE_APP_URLS
 API_CREATE_APP_URLS[CA]="https://ca.api.ovh.com/createApp/"
 API_CREATE_APP_URLS[EU]="https://api.ovh.com/createApp/"
-CURRENT_PATH="$(pwd)"
+CURRENT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 
 # THESE VARS WILL BE USED LATER
@@ -191,7 +191,6 @@ request()
 {
     updateTime
     updateSignData "$METHOD" "$URL" "$POST_DATA"
-    
     RESPONSE=$(curl -s -w "\n%{http_code}\n" -X $METHOD --header 'Content-Type:application/json;charset=utf-8' --header "X-Ovh-Application:$OVH_APP_KEY" --header "X-Ovh-Timestamp:$TIME" --header "X-Ovh-Signature:$SIG" --header "X-Ovh-Consumer:$OVH_CONSUMER_KEY" --data "$POST_DATA" ${API_URLS[$TARGET]}$URL)
     RESPONSE_STATUS=$(echo "$RESPONSE" | sed -n '$p')
     RESPONSE_CONTENT=$(echo "$RESPONSE" | sed '$d')
