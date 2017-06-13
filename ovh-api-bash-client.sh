@@ -18,8 +18,13 @@ API_URLS[EU]="https://api.ovh.com/1.0"
 declare -A API_CREATE_APP_URLS
 API_CREATE_APP_URLS[CA]="https://ca.api.ovh.com/createApp/"
 API_CREATE_APP_URLS[EU]="https://api.ovh.com/createApp/"
-CURRENT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+BASE_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+CURRENT_PATH="${BASE_PATH}"
+#PROFILES_PATH
+PROFILES_PATH="${BASE_PATH}/profile"
+
+HELP_CMD="$0"
 
 # THESE VARS WILL BE USED LATER
 METHOD="GET"
@@ -53,6 +58,7 @@ isTargetValid()
 
 createApp()
 {
+
     echo "For which OVH API do you want to create a new API Application? ($( echo ${TARGETS[@]} | sed 's/\s/|/g' ))"
     while [ -z "$NEXT" ]
     do
@@ -81,7 +87,7 @@ createApp()
         initApplication
         createConsumerKey
     else
-        echo -e "OK, no consumer key created for now.\nYou will be able to initiaze the consumer key later calling :\n$0 --init"
+        echo -e "OK, no consumer key created for now.\nYou will be able to initalize the consumer key later calling :\n${HELP_CMD} --init"
     fi
 }
 
@@ -89,9 +95,16 @@ createConsumerKey()
 {
     METHOD="POST"
     URL="/auth/credential"
-    POST_DATA='{ "accessRules": [ { "method": "GET", "path": "/*"}, { "method": "PUT", "path": "/*"}, { "method": "POST", "path": "/*"}, { "method": "DELETE", "path": "/*"} ] }'
 
+    # ensure an OVH App key is set
+    hasOvhAppKey || exit 1
+
+    # all grants if no post data defined
+    if [ -z "${POST_DATA}" ]; then
+      POST_DATA='{ "accessRules": [ { "method": "GET", "path": "/*"}, { "method": "PUT", "path": "/*"}, { "method": "POST", "path": "/*"}, { "method": "DELETE", "path": "/*"} ] }'
+    fi
     ANSWER=$(requestNoAuth)
+
     getJSONFieldString "$ANSWER" 'consumerKey' > $CURRENT_PATH/${CONSUMER_KEY_FILE}_${TARGET}
     echo -e "In order to validate the generated consumerKey, visit the validation url at:\n$(getJSONFieldString "$ANSWER" 'validationUrl')"
 }
@@ -128,7 +141,7 @@ updateSignData()
 
 help()
 {
-    echo 
+    echo
     echo "Help: possible arguments are:"
     echo "  --url <url>         : the API URL to call, for example /domains (default is /me)"
     echo "  --method <method>   : the HTTP method to use, for example POST (default is GET)"
@@ -136,6 +149,8 @@ help()
     echo "  --target <$( echo ${TARGETS[@]} | sed 's/\s/|/g' )>    : the target API (default is EU)"
     echo "  --init              : to initialize the consumer key"
     echo "  --initApp           : to initialize the API application"
+    echo "  --profile <dir>     : load a configuration from profile/ directory, (override default location)"
+    echo "  --list-profile      : list available profiles in profile/ directory"
     echo
 }
 
@@ -170,6 +185,19 @@ parseArguments()
             TARGET=$1
             isTargetValid
             ;;
+        --profile)
+            shift
+            initProfile "$1"
+            ;;
+        --list-profile)
+            shift
+            listProfile
+            exit 0
+            ;;
+        --help|-h)
+            help
+            exit 0
+            ;;
         *)
             echo "Unknow parameter $1"
             help
@@ -201,28 +229,70 @@ getJSONFieldString()
 {
     JSON="$1"
     FIELD="$2"
-    RESULT=$(echo $JSON | $CURRENT_PATH/$LIBS/JSON.sh | grep "\[\"$FIELD\"\]" | sed -r "s/\[\"$FIELD\"\]\s+(.*)/\1/")
+    RESULT=$(echo $JSON | $BASE_PATH/$LIBS/JSON.sh | grep "\[\"$FIELD\"\]" | sed -r "s/\[\"$FIELD\"\]\s+(.*)/\1/")
     echo ${RESULT:1:${#RESULT}-2}
+}
+
+# override CURRENT_PATH with profile name
+# usage : initProfile profile_name
+initProfile()
+{
+  local profile=$1
+  if [ -n "${profile}" ]; then
+
+    if [ ! -d "${PROFILES_PATH}/${profile}" ]
+    then
+     echo "${PROFILES_PATH}/${profile} should exists"
+     exit 1
+    fi
+    # override default configuration location
+    CURRENT_PATH="$( cd "${PROFILES_PATH}/${profile}" && pwd )"
+    HELP_CMD="${HELP_CMD} --profile ${profile}"
+  else
+    echo "profile not set, choose in : "
+    listProfile
+    exit 1
+  fi
+}
+
+listProfile()
+{
+  cd ${PROFILES_PATH} && ls -1
+}
+
+# ensure OVH App Key an App Secret are defined
+hasOvhAppKey()
+{
+    if [ -z "$OVH_APP_KEY" ] && [ -z "$OVH_APP_SECRET" ]
+    then
+        echo -e "No application is defined for target $TARGET, please call to initialize it:\n${HELP_CMD} --initApp"
+        return 1
+    fi
+    return 0
 }
 
 main()
 {
+
+    if [ ! -d "${PROFILES_PATH}" ]
+    then
+      mkdir "${PROFILES_PATH}"
+    fi
+
     parseArguments "$@"
-    
+
     initApplication
     initConsumerKey
-    
-    if [ -z $OVH_APP_KEY ] && [ -z $OVH_APP_SECRET ]
+
+    if hasOvhAppKey
     then
-        echo -e "No application is defined for target $TARGET, please call to initialize it:\n$0 --initApp"
-    elif [ -z $OVH_CONSUMER_KEY ]
-    then
-        echo -e "No consumer key for target $TARGET, please call to initialize it:\n$0 --init"
-    else
+      if [ -z "$OVH_CONSUMER_KEY" ]; then
+        echo -e "No consumer key for target $TARGET, please call to initialize it:\n${HELP_CMD} --init"
+      else
         request $METHOD $URL
+      fi
     fi
 }
 
 
 main "$@"
-

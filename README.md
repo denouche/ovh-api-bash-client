@@ -30,6 +30,11 @@ In order to create a new consumer key, run:
 Options
 -------
 
+### Show help
+```
+    ./ovh-api-bash-client.sh --help
+```
+
 Possible arguments are:
 ```
     --url <url>         : the API URL to call, for example /domains (default is /me)
@@ -38,6 +43,8 @@ Possible arguments are:
     --target <CA|EU>    : the target API (default is EU)
     --init              : to initialize the consumer key
     --initApp           : to initialize the API application
+    --profile <dir>     : load a configuration from profile/ directory, (override default location)
+    --list-profile      : list available profiles in profile/ directory    
 ```
 
 Usage
@@ -60,3 +67,10 @@ To activate the monitoring on your dedicated server, run:
     ./ovh-api-bash-client.sh --method PUT --url "/dedicated/server/ns00000.ovh.net" --data '{"monitoring": true}'
 ```
 
+create a Consumer key for different account or usage
+```
+    mkdir profile/demo1
+    mkdir profile/demo2
+    ./ovh-api-bash-client.sh --profile demo1 --init
+    ./ovh-api-bash-client.sh --profile demo2 --init
+```
