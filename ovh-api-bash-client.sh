@@ -20,8 +20,6 @@ API_CREATE_APP_URLS[CA]="https://ca.api.ovh.com/createApp/"
 API_CREATE_APP_URLS[EU]="https://api.ovh.com/createApp/"
 
 BASE_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-CURRENT_PATH="${BASE_PATH}"
-#PROFILES_PATH
 PROFILES_PATH="${BASE_PATH}/profile"
 
 HELP_CMD="$0"
@@ -143,14 +141,16 @@ help()
 {
     echo
     echo "Help: possible arguments are:"
-    echo "  --url <url>         : the API URL to call, for example /domains (default is /me)"
-    echo "  --method <method>   : the HTTP method to use, for example POST (default is GET)"
-    echo "  --data <JSON data>  : the data body to send with the request"
-    echo "  --target <$( echo ${TARGETS[@]} | sed 's/\s/|/g' )>    : the target API (default is EU)"
-    echo "  --init              : to initialize the consumer key"
-    echo "  --initApp           : to initialize the API application"
-    echo "  --profile <dir>     : load a configuration from profile/ directory, (override default location)"
-    echo "  --list-profile      : list available profiles in profile/ directory"
+    echo "  --url <url>             : the API URL to call, for example /domains (default is /me)"
+    echo "  --method <method>       : the HTTP method to use, for example POST (default is GET)"
+    echo "  --data <JSON data>      : the data body to send with the request"
+    echo "  --target <$( echo ${TARGETS[@]} | sed 's/\s/|/g' )>        : the target API (default is EU)"
+    echo "  --init                  : to initialize the consumer key"
+    echo "  --initApp               : to initialize the API application"
+    echo "  --list-profile          : list available profiles in profile/ directory"
+    echo "  --profile <value>"
+    echo "            * default : from script directory"
+    echo "            * <dir>   : from profile/<dir> directory"
     echo
 }
 
@@ -187,10 +187,9 @@ parseArguments()
             ;;
         --profile)
             shift
-            initProfile "$1"
+            PROFILE=$1
             ;;
         --list-profile)
-            shift
             listProfile
             exit 0
             ;;
@@ -233,30 +232,40 @@ getJSONFieldString()
     echo ${RESULT:1:${#RESULT}-2}
 }
 
-# override CURRENT_PATH with profile name
+# set CURRENT_PATH with profile name
 # usage : initProfile profile_name
 initProfile()
 {
   local profile=$1
-  if [ -n "${profile}" ]; then
 
+  if [ ! -d "${PROFILES_PATH}" ]
+  then
+    mkdir "${PROFILES_PATH}" || exit 1
+  fi
+
+  # if profile is not set, or with value 'default'
+  if [[ -z "${profile}" ]] || [[ "${profile}" == "default" ]]
+  then
+    # configuration stored in the script path
+    CURRENT_PATH="${BASE_PATH}"
+  else
+    # ensure profile directory exists
     if [ ! -d "${PROFILES_PATH}/${profile}" ]
     then
      echo "${PROFILES_PATH}/${profile} should exists"
+     listProfile
      exit 1
     fi
     # override default configuration location
     CURRENT_PATH="$( cd "${PROFILES_PATH}/${profile}" && pwd )"
     HELP_CMD="${HELP_CMD} --profile ${profile}"
-  else
-    echo "profile not set, choose in : "
-    listProfile
-    exit 1
   fi
+
 }
 
 listProfile()
 {
+  echo "Available profiles : "
   cd ${PROFILES_PATH} && ls -1
 }
 
@@ -274,12 +283,9 @@ hasOvhAppKey()
 main()
 {
 
-    if [ ! -d "${PROFILES_PATH}" ]
-    then
-      mkdir "${PROFILES_PATH}"
-    fi
-
     parseArguments "$@"
+
+    initProfile ${PROFILE}
 
     initApplication
     initConsumerKey
