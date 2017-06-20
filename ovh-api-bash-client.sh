@@ -31,7 +31,7 @@ TARGET="EU"
 TIME=""
 SIGDATA=""
 POST_DATA=""
-
+PROFILE=""
 
 isTargetValid()
 {
@@ -82,7 +82,6 @@ createApp()
     read NEXT
     if [ -n "$NEXT" ] && [ $( echo $NEXT | tr [:upper:] [:lower:] ) = y ]
     then
-        initApplication
         createConsumerKey
     else
         echo -e "OK, no consumer key created for now.\nYou will be able to initalize the consumer key later calling :\n${HELP_CMD} --init"
@@ -91,10 +90,12 @@ createApp()
 
 createConsumerKey()
 {
+
     METHOD="POST"
     URL="/auth/credential"
 
     # ensure an OVH App key is set
+    initApplication
     hasOvhAppKey || exit 1
 
     # all grants if no post data defined
@@ -156,6 +157,9 @@ help()
 
 parseArguments()
 {
+    # an action launched out of this function
+    INIT_KEY_ACTION=
+
     while [ $# -gt 0 ]
     do
         case $1 in
@@ -164,13 +168,10 @@ parseArguments()
             POST_DATA=$1
             ;;
         --init)
-            initApplication
-            createConsumerKey
-            exit 0
+            INIT_KEY_ACTION="ConsumerKey"
             ;;
         --initApp)
-            createApp
-            exit 0
+            INIT_KEY_ACTION="AppKey"
             ;;
         --method)
             shift
@@ -265,8 +266,18 @@ initProfile()
 
 listProfile()
 {
+  local dir=
   echo "Available profiles : "
-  cd ${PROFILES_PATH} && ls -1
+  echo "- default"
+  if [ -d "${PROFILES_PATH}" ]
+  then
+    # only list directory
+    for dir in $(cd ${PROFILES_PATH}; echo */);
+    do
+      # display directory name without slash
+      echo "- ${dir%%/}"
+    done
+  fi
 }
 
 # ensure OVH App Key an App Secret are defined
@@ -285,7 +296,16 @@ main()
 
     parseArguments "$@"
 
+    # set profile location
     initProfile ${PROFILE}
+
+    # user want to add An API Key
+    case ${INIT_KEY_ACTION} in
+      AppKey) createApp;;
+      ConsumerKey) createConsumerKey;;
+    esac
+    ## exit after initializing any API Keys
+    [ -n "${INIT_KEY_ACTION}" ] && exit 0
 
     initApplication
     initConsumerKey
