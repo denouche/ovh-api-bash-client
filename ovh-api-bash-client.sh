@@ -18,8 +18,11 @@ API_URLS[EU]="https://api.ovh.com/1.0"
 declare -A API_CREATE_APP_URLS
 API_CREATE_APP_URLS[CA]="https://ca.api.ovh.com/createApp/"
 API_CREATE_APP_URLS[EU]="https://api.ovh.com/createApp/"
-CURRENT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+BASE_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROFILES_PATH="${BASE_PATH}/profile"
+
+HELP_CMD="$0"
 
 # THESE VARS WILL BE USED LATER
 METHOD="GET"
@@ -28,7 +31,7 @@ TARGET="EU"
 TIME=""
 SIGDATA=""
 POST_DATA=""
-
+PROFILE=""
 
 isTargetValid()
 {
@@ -53,6 +56,7 @@ isTargetValid()
 
 createApp()
 {
+
     echo "For which OVH API do you want to create a new API Application? ($( echo ${TARGETS[@]} | sed 's/\s/|/g' ))"
     while [ -z "$NEXT" ]
     do
@@ -78,20 +82,28 @@ createApp()
     read NEXT
     if [ -n "$NEXT" ] && [ $( echo $NEXT | tr [:upper:] [:lower:] ) = y ]
     then
-        initApplication
         createConsumerKey
     else
-        echo -e "OK, no consumer key created for now.\nYou will be able to initiaze the consumer key later calling :\n$0 --init"
+        echo -e "OK, no consumer key created for now.\nYou will be able to initalize the consumer key later calling :\n${HELP_CMD} --init"
     fi
 }
 
 createConsumerKey()
 {
+
     METHOD="POST"
     URL="/auth/credential"
-    POST_DATA='{ "accessRules": [ { "method": "GET", "path": "/*"}, { "method": "PUT", "path": "/*"}, { "method": "POST", "path": "/*"}, { "method": "DELETE", "path": "/*"} ] }'
 
+    # ensure an OVH App key is set
+    initApplication
+    hasOvhAppKey || exit 1
+
+    # all grants if no post data defined
+    if [ -z "${POST_DATA}" ]; then
+      POST_DATA='{ "accessRules": [ { "method": "GET", "path": "/*"}, { "method": "PUT", "path": "/*"}, { "method": "POST", "path": "/*"}, { "method": "DELETE", "path": "/*"} ] }'
+    fi
     ANSWER=$(requestNoAuth)
+
     getJSONFieldString "$ANSWER" 'consumerKey' > $CURRENT_PATH/${CONSUMER_KEY_FILE}_${TARGET}
     echo -e "In order to validate the generated consumerKey, visit the validation url at:\n$(getJSONFieldString "$ANSWER" 'validationUrl')"
 }
@@ -128,19 +140,26 @@ updateSignData()
 
 help()
 {
-    echo 
+    echo
     echo "Help: possible arguments are:"
-    echo "  --url <url>         : the API URL to call, for example /domains (default is /me)"
-    echo "  --method <method>   : the HTTP method to use, for example POST (default is GET)"
-    echo "  --data <JSON data>  : the data body to send with the request"
-    echo "  --target <$( echo ${TARGETS[@]} | sed 's/\s/|/g' )>    : the target API (default is EU)"
-    echo "  --init              : to initialize the consumer key"
-    echo "  --initApp           : to initialize the API application"
+    echo "  --url <url>             : the API URL to call, for example /domains (default is /me)"
+    echo "  --method <method>       : the HTTP method to use, for example POST (default is GET)"
+    echo "  --data <JSON data>      : the data body to send with the request"
+    echo "  --target <$( echo ${TARGETS[@]} | sed 's/\s/|/g' )>        : the target API (default is EU)"
+    echo "  --init                  : to initialize the consumer key"
+    echo "  --initApp               : to initialize the API application"
+    echo "  --list-profile          : list available profiles in profile/ directory"
+    echo "  --profile <value>"
+    echo "            * default : from script directory"
+    echo "            * <dir>   : from profile/<dir> directory"
     echo
 }
 
 parseArguments()
 {
+    # an action launched out of this function
+    INIT_KEY_ACTION=
+
     while [ $# -gt 0 ]
     do
         case $1 in
@@ -149,13 +168,10 @@ parseArguments()
             POST_DATA=$1
             ;;
         --init)
-            initApplication
-            createConsumerKey
-            exit 0
+            INIT_KEY_ACTION="ConsumerKey"
             ;;
         --initApp)
-            createApp
-            exit 0
+            INIT_KEY_ACTION="AppKey"
             ;;
         --method)
             shift
@@ -169,6 +185,18 @@ parseArguments()
             shift
             TARGET=$1
             isTargetValid
+            ;;
+        --profile)
+            shift
+            PROFILE=$1
+            ;;
+        --list-profile)
+            listProfile
+            exit 0
+            ;;
+        --help|-h)
+            help
+            exit 0
             ;;
         *)
             echo "Unknow parameter $1"
@@ -201,28 +229,116 @@ getJSONFieldString()
 {
     JSON="$1"
     FIELD="$2"
-    RESULT=$(echo $JSON | $CURRENT_PATH/$LIBS/JSON.sh | grep "\[\"$FIELD\"\]" | sed -r "s/\[\"$FIELD\"\]\s+(.*)/\1/")
+    RESULT=$(echo $JSON | $BASE_PATH/$LIBS/JSON.sh | grep "\[\"$FIELD\"\]" | sed -r "s/\[\"$FIELD\"\]\s+(.*)/\1/")
     echo ${RESULT:1:${#RESULT}-2}
+}
+
+# set CURRENT_PATH with profile name
+# usage : initProfile |set|get] profile_name
+#  set : create the profile if missing
+#  get : raise an error if no profile with that name
+initProfile()
+{
+  local createProfile=$1
+  local profile=$2
+
+  if [ ! -d "${PROFILES_PATH}" ]
+  then
+    mkdir "${PROFILES_PATH}" || exit 1
+  fi
+
+  # if profile is not set, or with value 'default'
+  if [[ -z "${profile}" ]] || [[ "${profile}" == "default" ]]
+  then
+    # configuration stored in the script path
+    CURRENT_PATH="${BASE_PATH}"
+  else
+    # ensure profile directory exists
+    if [ ! -d "${PROFILES_PATH}/${profile}" ]
+    then
+     case ${createProfile} in
+        get)
+          echo "${PROFILES_PATH}/${profile} should exists"
+          listProfile
+          exit 1
+          ;;
+        set)
+          mkdir "${PROFILES_PATH}/${profile}" || exit 1
+          ;;
+      esac
+    fi
+    # override default configuration location
+    CURRENT_PATH="$( cd "${PROFILES_PATH}/${profile}" && pwd )"
+  fi
+
+  if [ -n "${profile}" ] 
+  then
+    HELP_CMD="${HELP_CMD} --profile ${profile}"
+  fi
+
+}
+
+listProfile()
+{
+  local dir=
+  echo "Available profiles : "
+  echo "- default"
+
+  if [ -d "${PROFILES_PATH}" ]
+  then
+        # only list directory
+    for dir in $(cd ${PROFILES_PATH} && ls -d */ 2>/dev/null)
+    do
+      # display directory name without slash
+      echo "- ${dir%%/}"
+    done
+  fi
+}
+
+# ensure OVH App Key an App Secret are defined
+hasOvhAppKey()
+{
+    if [ -z "$OVH_APP_KEY" ] && [ -z "$OVH_APP_SECRET" ]
+    then
+        echo -e "No application is defined for target $TARGET, please call to initialize it:\n${HELP_CMD} --initApp"
+        return 1
+    fi
+    return 0
 }
 
 main()
 {
+
     parseArguments "$@"
-    
+
+    local profileAction="get"
+
+    if [ -n "${INIT_KEY_ACTION}" ]; then
+        profileAction="set"
+    fi
+
+    initProfile ${profileAction} ${PROFILE}
+
+    # user want to add An API Key
+    case ${INIT_KEY_ACTION} in
+      AppKey) createApp;;
+      ConsumerKey) createConsumerKey;;
+    esac
+    ## exit after initializing any API Keys
+    [ -n "${INIT_KEY_ACTION}" ] && exit 0
+
     initApplication
     initConsumerKey
-    
-    if [ -z $OVH_APP_KEY ] && [ -z $OVH_APP_SECRET ]
+
+    if hasOvhAppKey
     then
-        echo -e "No application is defined for target $TARGET, please call to initialize it:\n$0 --initApp"
-    elif [ -z $OVH_CONSUMER_KEY ]
-    then
-        echo -e "No consumer key for target $TARGET, please call to initialize it:\n$0 --init"
-    else
+      if [ -z "$OVH_CONSUMER_KEY" ]; then
+        echo -e "No consumer key for target $TARGET, please call to initialize it:\n${HELP_CMD} --init"
+      else
         request $METHOD $URL
+      fi
     fi
 }
 
 
 main "$@"
-
