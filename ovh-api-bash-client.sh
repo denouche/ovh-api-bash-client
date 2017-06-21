@@ -234,10 +234,13 @@ getJSONFieldString()
 }
 
 # set CURRENT_PATH with profile name
-# usage : initProfile profile_name
+# usage : initProfile |set|get] profile_name
+#  set : create the profile if missing
+#  get : raise an error if no profile with that name
 initProfile()
 {
-  local profile=$1
+  local createProfile=$1
+  local profile=$2
 
   if [ ! -d "${PROFILES_PATH}" ]
   then
@@ -253,12 +256,23 @@ initProfile()
     # ensure profile directory exists
     if [ ! -d "${PROFILES_PATH}/${profile}" ]
     then
-     echo "${PROFILES_PATH}/${profile} should exists"
-     listProfile
-     exit 1
+     case ${createProfile} in
+        get)
+          echo "${PROFILES_PATH}/${profile} should exists"
+          listProfile
+          exit 1
+          ;;
+        set)
+          mkdir "${PROFILES_PATH}/${profile}" || exit 1
+          ;;
+      esac
     fi
     # override default configuration location
     CURRENT_PATH="$( cd "${PROFILES_PATH}/${profile}" && pwd )"
+  fi
+
+  if [ -n "${profile}" ] 
+  then
     HELP_CMD="${HELP_CMD} --profile ${profile}"
   fi
 
@@ -269,10 +283,11 @@ listProfile()
   local dir=
   echo "Available profiles : "
   echo "- default"
+
   if [ -d "${PROFILES_PATH}" ]
   then
-    # only list directory
-    for dir in $(cd ${PROFILES_PATH}; echo */);
+        # only list directory
+    for dir in $(cd ${PROFILES_PATH} && ls -d */ 2>/dev/null)
     do
       # display directory name without slash
       echo "- ${dir%%/}"
@@ -296,8 +311,13 @@ main()
 
     parseArguments "$@"
 
-    # set profile location
-    initProfile ${PROFILE}
+    local profileAction="get"
+
+    if [ -n "${INIT_KEY_ACTION}" ]; then
+        profileAction="set"
+    fi
+
+    initProfile ${profileAction} ${PROFILE}
 
     # user want to add An API Key
     case ${INIT_KEY_ACTION} in

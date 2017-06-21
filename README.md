@@ -1,4 +1,4 @@
-ovh API Bash client
+ orovh API Bash client
 ================
 
 A bash client for OVH API (https://api.ovh.com/)
@@ -69,10 +69,8 @@ To activate the monitoring on your dedicated server, run:
     ./ovh-api-bash-client.sh --method PUT --url "/dedicated/server/ns00000.ovh.net" --data '{"monitoring": true}'
 ```
 
-create a Consumer key for different account or usage
+To create a Consumer key for different account or usage (profile is created if missing)
 ```
-    mkdir profile/demo1
-    mkdir profile/demo2
     ./ovh-api-bash-client.sh --profile demo1 --init
     ./ovh-api-bash-client.sh --profile demo2 --init
 ```
