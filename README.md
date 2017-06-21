@@ -1,4 +1,4 @@
- orovh API Bash client
+ OVH API Bash client
 ================
 
 A bash client for OVH API (https://api.ovh.com/)
