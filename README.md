@@ -83,7 +83,7 @@ Embedded lib for external scripts
 
 #### OvhRequestApi
 
-- OvhRequestApi() : wrapper to ovh-api-bash-client.sh
+OvhRequestApi() is wrapper to ovh-api-bash-client.sh
 
 ```
     OvhRequestApi url [method] [post_data]
@@ -92,26 +92,26 @@ Embedded lib for external scripts
 return values in OVHAPI_HTTP_STATUS and OVHAPI_HTTP_RESPONSE
 
 
-#### JSon stuff
-- getJSONString() : unquote string value
-- getJSONValue() : get JSON value as is
+#### wrappers for JSON.sh
+
+- getJSONKeys()   : get JSON keys, remove first/last double quotes if present
+- getJSONValue()  : get a JSON key value, remove first/last double quotes if present
 - getJSONValues() : get all JSON values at once
-- getJSONArrayLength() : count array elements
 
 ### sample usage
 
 Once you've an available OVH API authentication, you can use the library :
 
-To set a profile, define value OVHAPI_BASHCLIENT_PROFILE (can be used inside or outside your script)
+- To override profile, set OVHAPI_BASHCLIENT_PROFILE
+- To override target, set OVHAPI_TARGET
+- For **ovh-api-lib.sh** debug output, set OVHAPILIB_DEBUG to 1
 
-**sample-script.sh**
+This variables can be set in your script or exported from commandline
+
+You can find some samples scripts in the **samples/** directory
+
+**sample usage**
 
 ```
-    source path/to/ovh-api-bash-client/ovh-api-lib.sh || exit 1
-    OvhRequestApi /me
+  OVHAPI_BASHCLIENT_PROFILE=demo samples/list-domains.sh
 ```
-
-**sample**
-
-
-OVHAPI_BASHCLIENT_PROFILE=demo samples/list-domains.sh
