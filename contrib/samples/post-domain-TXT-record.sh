@@ -2,7 +2,7 @@
 HERE=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
 source ${HERE}/../ovh-api-lib.sh || exit 1
 
-OvhRequestApi "/me"
+OvhRequestApi /me
 
 if [ "${OVHAPI_HTTP_STATUS}" != "200" ]; then
   echo "profile error:"
@@ -15,7 +15,7 @@ if [ -z "${OVH_DOMAIN}" ]; then
   echo -e "choose in :\n"
 
   OvhRequestApi "/domain"
-  getJSONValues "${OVHAPI_HTTP_RESPONSE}"
+  getJSONValues
   exit 1
 fi
 
@@ -31,7 +31,7 @@ EOF
 
 OvhRequestApi "/domain/zone/${OVH_DOMAIN}/record/" POST "${CUSTOMDATA}"
 echo ${OVHAPI_HTTP_STATUS}
-getJSONValues "${OVHAPI_HTTP_RESPONSE}"
+getJSONValues
 
 txt_value="test2: text with space and quo't'es"
 CUSTOMDATA="{\"fieldType\":\"TXT\",\"subDomain\":\"${txt_field}\",\"target\":\"${txt_value}\",\"ttl\":0}"
@@ -39,4 +39,4 @@ CUSTOMDATA="{\"fieldType\":\"TXT\",\"subDomain\":\"${txt_field}\",\"target\":\"$
 OvhRequestApi "/domain/zone/${OVH_DOMAIN}/record/" POST "${CUSTOMDATA}"
 
 echo ${OVHAPI_HTTP_STATUS}
-getJSONValues "${OVHAPI_HTTP_RESPONSE}"
+getJSONValues

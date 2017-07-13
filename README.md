@@ -75,43 +75,7 @@ To create a Consumer key for different account or usage (profile is created if m
     ./ovh-api-bash-client.sh --profile demo2 --init
 ```
 
-
 Embedded lib for external scripts
-----------
+---------------------------------
 
-### ovh-api-lib.sh
-
-#### OvhRequestApi
-
-OvhRequestApi() is wrapper to ovh-api-bash-client.sh
-
-```
-    OvhRequestApi url [method] [post_data]
-```
-
-return values in OVHAPI_HTTP_STATUS and OVHAPI_HTTP_RESPONSE
-
-
-#### wrappers for JSON.sh
-
-- getJSONKeys()   : get JSON keys, remove first/last double quotes if present
-- getJSONValue()  : get a JSON key value, remove first/last double quotes if present
-- getJSONValues() : get all JSON values at once
-
-### sample usage
-
-Once you've an available OVH API authentication, you can use the library :
-
-- To override profile, set OVHAPI_BASHCLIENT_PROFILE
-- To override target, set OVHAPI_TARGET
-- For **ovh-api-lib.sh** debug output, set OVHAPILIB_DEBUG to 1
-
-This variables can be set in your script or exported from commandline
-
-You can find some samples scripts in the **samples/** directory
-
-**sample usage**
-
-```
-  OVHAPI_BASHCLIENT_PROFILE=demo samples/list-domains.sh
-```
+See **contrib/** directory

@@ -2,7 +2,7 @@
 HERE=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
 source ${HERE}/../ovh-api-lib.sh || exit 1
 
-OvhRequestApi "/me"
+OvhRequestApi /me
 
 if [ "${OVHAPI_HTTP_STATUS}" != "200" ]; then
   echo "profile error:"
@@ -13,7 +13,7 @@ fi
 OvhRequestApi "/domain"
 
 if [ "${OVHAPI_HTTP_STATUS}" -eq 200 ]; then
-   domains=($(getJSONValues "${OVHAPI_HTTP_RESPONSE}"))
+   domains=($(getJSONValues))
    echo "number of domains=${#domains[@]}"
 
    # for example, only list for first domain
@@ -24,9 +24,9 @@ if [ "${OVHAPI_HTTP_STATUS}" -eq 200 ]; then
      OvhRequestApi "/domain/${domain}"
      echo "-- single value --"
      # key can be passed with/without double quote
-     getJSONValue "${OVHAPI_HTTP_RESPONSE}" lastUpdate
-     getJSONValue "${OVHAPI_HTTP_RESPONSE}" '"transferLockStatus"'
+     getJSONValue lastUpdate
+     getJSONValue '"transferLockStatus"'
      echo "-- get all values --"
-     getJSONValues "${OVHAPI_HTTP_RESPONSE}"
+     getJSONValues
    done
 fi

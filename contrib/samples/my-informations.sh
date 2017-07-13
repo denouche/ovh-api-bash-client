@@ -10,9 +10,9 @@ if [ "${OVHAPI_HTTP_STATUS}" != "200" ]; then
   exit
 else
   echo "-- all fields --"
-  getJSONValues "${OVHAPI_HTTP_RESPONSE}"
+  getJSONValues
   echo "-- only some fields --"
-  getJSONValue "${OVHAPI_HTTP_RESPONSE}" "email"
-  getJSONValue "${OVHAPI_HTTP_RESPONSE}" "currency.code"
-  getJSONValue "${OVHAPI_HTTP_RESPONSE}" "currency.symbol"
+  getJSONValue "email"
+  getJSONValue "currency.code"
+  getJSONValue "currency.symbol"
 fi
