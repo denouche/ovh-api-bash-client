@@ -4,9 +4,9 @@ source ${HERE}/../ovh-api-lib.sh || exit 1
 
 OvhRequestApi /me
 
-if [ "${OVHAPI_HTTP_STATUS}" != "200" ]; then
+if [ ${OVHAPI_HTTP_STATUS} -ne 200 ]; then
   echo "profile error:"
-  echo "${OVHAPI_HTTP_RESPONSE}"
+  getJSONValues
   exit
 fi
 
@@ -29,4 +29,6 @@ if [ "${OVHAPI_HTTP_STATUS}" -eq 200 ]; then
      echo "-- get all values --"
      getJSONValues
    done
+else
+  getJSONValues
 fi

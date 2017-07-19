@@ -4,7 +4,8 @@ readonly OVHAPI_BASHCLIENT_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}")/.." && pwd)
 readonly OVHAPI_BASHCLIENT_BIN="${OVHAPI_BASHCLIENT_DIR}/ovh-api-bash-client.sh"
 readonly OVHAPI_BASHCLIENT_CONTRIB_DIR="${OVHAPI_BASHCLIENT_DIR}/contrib"
 
-. "${OVHAPI_BASHCLIENT_DIR}/contrib/jsonsh-lib.sh" || exit 1
+JSONSH_DIR="${OVHAPI_BASHCLIENT_DIR}/libs/"
+. "${OVHAPI_BASHCLIENT_CONTRIB_DIR}/jsonsh-lib.sh" || exit 1
 
 OVHAPI_HTTP_STATUS=
 OVHAPI_HTTP_RESPONSE=
@@ -43,13 +44,14 @@ OvhRequestApi()
   local data=$3
 
   local client_response=
-
+  local cmd_profile=
   local cmd=(${OVHAPI_BASHCLIENT_BIN})
 
   ## construct arguments array
   if [ -n "${OVHAPI_BASHCLIENT_PROFILE}" ]; then
     cmd+=(--profile ${OVHAPI_BASHCLIENT_PROFILE})
   fi
+  cmd_profile=${cmd[*]}
 
   if [ -n "${url}" ]; then
     cmd+=(--url ${url})
@@ -77,6 +79,14 @@ OvhRequestApi()
   OVHAPI_HTTP_STATUS=$(echo "${client_response}" | cut -d ' ' -f1)
   OVHAPI_HTTP_RESPONSE="$(echo "${client_response}" | cut -d ' ' -f2-)"
 
+  # catch profile error
+  if [[ ! ${OVHAPI_HTTP_STATUS} =~ ^[0-9]+$ ]] && [[ ${OVHAPI_HTTP_RESPONSE} == *$'\n'* ]]; then
+    OVHAPI_HTTP_STATUS=500
+    OVHAPI_HTTP_RESPONSE=$(cat <<EOF
+["more than one line returned, check your profile : ${cmd_profile}"]
+EOF
+)
+  fi
   _ovhapilib_echo_debug "http_status=${OVHAPI_HTTP_STATUS}"
 
   # forward result to JSON.sh to be usable with JSONSH functions

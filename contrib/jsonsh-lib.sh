@@ -161,7 +161,7 @@ _JSonSH_rewrite_output()
 }
 
 #
-# return JSON keys
+# print JSON keys
 #
 # usage : getJSONKeys
 #
@@ -176,12 +176,9 @@ getJSONKeys()
 }
 
 #
-# return the value for a defined filed
+# print the value for a defined field
 #
-# if field is a string, it can be set with/without double quotes
-# if the result is between double quotes, only get the value inside
-#
-# usage : getJSONValue "json" field
+# usage : getJSONValue field
 #
 getJSONValue()
 {
