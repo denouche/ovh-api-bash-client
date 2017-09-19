@@ -74,3 +74,8 @@ To create a Consumer key for different account or usage (profile is created if m
     ./ovh-api-bash-client.sh --profile demo1 --init
     ./ovh-api-bash-client.sh --profile demo2 --init
 ```
+
+Embedded lib for external scripts
+---------------------------------
+
+See **contrib/** directory

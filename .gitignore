@@ -2,4 +2,4 @@
 .ovhConsumerKey*
 libs/
 profile/
-
+contrib/test/*.json
