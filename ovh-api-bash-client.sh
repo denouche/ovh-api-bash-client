@@ -98,10 +98,11 @@ createConsumerKey()
     initApplication
     hasOvhAppKey || exit 1
 
-    # all grants if no post data defined
+    # condition keeped for retro-compatibility, to always allow post accessRules from --data
     if [ -z "${POST_DATA}" ]; then
-      POST_DATA='{ "accessRules": [ { "method": "GET", "path": "/*"}, { "method": "PUT", "path": "/*"}, { "method": "POST", "path": "/*"}, { "method": "DELETE", "path": "/*"} ] }'
+      buildAccessRules
     fi
+
     ANSWER=$(requestNoAuth)
 
     getJSONFieldString "$ANSWER" 'consumerKey' > $CURRENT_PATH/${CONSUMER_KEY_FILE}_${TARGET}
@@ -146,7 +147,7 @@ help()
     echo "  --method <method>       : the HTTP method to use, for example POST (default is GET)"
     echo "  --data <JSON data>      : the data body to send with the request"
     echo "  --target <$( echo ${TARGETS[@]} | sed 's/\s/|/g' )>        : the target API (default is EU)"
-    echo "  --init                  : to initialize the consumer key"
+    echo "  --init                  : to initialize the consumer key, and manage custom access rules file"
     echo "  --initApp               : to initialize the API application"
     echo "  --list-profile          : list available profiles in profile/ directory"
     echo "  --profile <value>"
@@ -155,6 +156,45 @@ help()
     echo
 }
 
+buildAccessRules()
+{
+  local access_rules_file="${CURRENT_PATH}/access.rules"
+  local method path
+  local json_rules
+  local answer
+
+  if [ ! -f "${access_rules_file}" ]; then
+    echo "${access_rules_file} missing, created full access rules"
+    echo -e "GET /*\nPUT /*\nPOST /*\nDELETE /*" > "${CURRENT_PATH}/access.rules"
+  fi
+
+  echo -e "Current rules for that profile\n"
+  cat "${access_rules_file}"
+  echo -e "\nDo you need to customize this rules ?"
+  read -n1 -p  "(y/n)> " answer
+  echo -e "\n"
+
+  case ${answer} in
+    [Yy]) echo "Operation canceled, please edit ${access_rules_file}"; exit;;
+    [Nn]) echo  "Now generating POST JSON Data for accessRules";;
+    *) echo "bad choice"; exit 1;;
+  esac
+
+  while read -r method path;
+  do
+    if [ -n "${method}" ] && [ -n "${path}" ]; then
+      json_rules+='{ "method": "'${method}'", "path": "'${path}'"},'
+    fi
+  done < "${access_rules_file}"
+  json_rules=${json_rules::-1}
+  if [ -z "${json_rules}" ]; then
+    echo "no rule defined, please verify your file '${access_rules_file}'" >&2
+    exit 1
+  fi
+
+  POST_DATA='{ "accessRules": [ '${json_rules}' ] }'
+
+}
 parseArguments()
 {
     # an action launched out of this function
@@ -271,7 +311,7 @@ initProfile()
     CURRENT_PATH="$( cd "${PROFILES_PATH}/${profile}" && pwd )"
   fi
 
-  if [ -n "${profile}" ] 
+  if [ -n "${profile}" ]
   then
     HELP_CMD="${HELP_CMD} --profile ${profile}"
   fi
