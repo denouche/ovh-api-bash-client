@@ -19,7 +19,19 @@ declare -A API_CREATE_APP_URLS
 API_CREATE_APP_URLS[CA]="https://ca.api.ovh.com/createApp/"
 API_CREATE_APP_URLS[EU]="https://api.ovh.com/createApp/"
 
-BASE_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+## https://gist.github.com/TheMengzor/968e5ea87e99d9c41782
+# resolve $SOURCE until the file is no longer a symlink
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "${SOURCE}" ]
+do
+  DIR="$( cd -P "$( dirname "${SOURCE}" )" && pwd )"
+  SOURCE="$(readlink "${SOURCE}")"
+  # if $SOURCE was a relative symlink,
+  # we need to resolve it relative to the path where the symlink file was located
+  [[ ${SOURCE} != /* ]] && SOURCE="${DIR}/${SOURCE}"
+done
+BASE_PATH=$( cd -P "$( dirname "${SOURCE}" )" && pwd )
+
 PROFILES_PATH="${BASE_PATH}/profile"
 
 HELP_CMD="$0"
