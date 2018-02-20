@@ -41,12 +41,12 @@ Possible arguments are:
   --method <method>       : the HTTP method to use, for example POST (default is GET)
   --data <JSON data>      : the data body to send with the request
   --target <CA|EU>        : the target API (default is EU)
-  --init                  : to initialize the consumer key
+  --init                  : to initialize the consumer key, and manage custom access rules file
   --initApp               : to initialize the API application
-  --list-profile          : list available profiles in profile/ directory
+  --list-profile          : list available profiles in ~/.ovh-api-bash-client/profile directory
   --profile <value>
-            * default : from script directory
-            * <dir>   : from profile/<dir> directory
+            * default : from ~/.ovh-api-bash-client/profile directory
+            * <dir>   : from ~/.ovh-api-bash-client/profile/<dir> directory
 ```
 
 Usage
