@@ -320,7 +320,7 @@ initProfile()
       if [ -n "${legacy_default_profile}" ]; then
           _echoWarning "> migrating default profile:"
           echo "${legacy_default_profile}"
-          mv ${BASE_PATH}/.ovh* access.rules "${PROFILES_PATH}"
+          mv ${BASE_PATH}/{.ovh*,access.rules} "${PROFILES_PATH}"
       fi
 
       if [ -n "${legacy_profiles}" ]; then
