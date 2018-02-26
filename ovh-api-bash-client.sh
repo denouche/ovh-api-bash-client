@@ -311,18 +311,26 @@ initProfile()
   if [ -d "${LEGACY_PROFILES_PATH}" ]; then
     # is there any profile in legacy path ?
     legacy_profiles=$(ls -A "${LEGACY_PROFILES_PATH}" 2>/dev/null)
-    legacy_default_profile=$(ls -A "${BASE_PATH}"/.ovh* 2>/dev/null)
+    legacy_default_profile=$(cd "${BASE_PATH}" && ls .ovh* access.rules 2>/dev/null)
+
     if [ -n "${legacy_profiles}" ] || [ -n "${legacy_default_profile}" ]; then
-      _echoWarning "Your profiles resides in the legacy path:"
-      echo "${legacy_profiles}"
-      echo "${legacy_default_profile}"
-      _echoWarning "Please move them to this new location like this:"
-      [ -n "${legacy_profiles}" ] && _echoWarning "  mv ${LEGACY_PROFILES_PATH}/* ${PROFILES_PATH}"
-      [ -n "${legacy_default_profile}" ] && _echoWarning "  mv ${BASE_PATH}/.ovh* access.rules ${PROFILES_PATH}"
-      exit 1
+      # notify about migration to new location:
+      _echoWarning "Your profiles were in the legacy path, migrating to ${PROFILES_PATH} :"
+
+      if [ -n "${legacy_default_profile}" ]; then
+          _echoWarning "> migrating default profile:"
+          echo "${legacy_default_profile}"
+          mv ${BASE_PATH}/.ovh* access.rules "${PROFILES_PATH}"
+      fi
+
+      if [ -n "${legacy_profiles}" ]; then
+          _echoWarning "> migrating custom profiles:"
+          echo "${legacy_profiles}"
+          mv ${LEGACY_PROFILES_PATH}/* "${PROFILES_PATH}"
+      fi
+
     fi
   fi
-
 
   # if profile is not set, or with value 'default'
   if [[ -z "${profile}" ]] || [[ "${profile}" == "default" ]]
