@@ -32,7 +32,8 @@ do
 done
 BASE_PATH=$( cd -P "$( dirname "${SOURCE}" )" && pwd )
 
-PROFILES_PATH="${BASE_PATH}/profile"
+LEGACY_PROFILES_PATH="${BASE_PATH}/profile"
+PROFILES_PATH="${HOME}/.ovh-api-bash-client/profile"
 
 HELP_CMD="$0"
 
@@ -44,6 +45,11 @@ TIME=""
 SIGDATA=""
 POST_DATA=""
 PROFILE=""
+
+_echoWarning()
+{
+  echo >&2 "[WARNING] $*"
+}
 
 isTargetValid()
 {
@@ -161,10 +167,10 @@ help()
     echo "  --target <$( echo ${TARGETS[@]} | sed 's/\s/|/g' )>        : the target API (default is EU)"
     echo "  --init                  : to initialize the consumer key, and manage custom access rules file"
     echo "  --initApp               : to initialize the API application"
-    echo "  --list-profile          : list available profiles in profile/ directory"
+    echo "  --list-profile          : list available profiles in ~/.ovh-api-bash-client/profile directory"
     echo "  --profile <value>"
-    echo "            * default : from script directory"
-    echo "            * <dir>   : from profile/<dir> directory"
+    echo "            * default : from ~/.ovh-api-bash-client/profile directory"
+    echo "            * <dir>   : from ~/.ovh-api-bash-client/profile/<dir> directory"
     echo
 }
 
@@ -200,7 +206,7 @@ buildAccessRules()
   done < "${access_rules_file}"
   json_rules=${json_rules::-1}
   if [ -z "${json_rules}" ]; then
-    echo "no rule defined, please verify your file '${access_rules_file}'" >&2
+    echoWarning "no rule defined, please verify your file '${access_rules_file}'"
     exit 1
   fi
 
@@ -296,14 +302,41 @@ initProfile()
 
   if [ ! -d "${PROFILES_PATH}" ]
   then
-    mkdir "${PROFILES_PATH}" || exit 1
+    mkdir -pv "${PROFILES_PATH}" || exit 1
+  fi
+
+  # checking if some profiles remains in legacy profile path
+  local legacy_profiles=
+  local legacy_default_profile=
+  if [ -d "${LEGACY_PROFILES_PATH}" ]; then
+    # is there any profile in legacy path ?
+    legacy_profiles=$(ls -A "${LEGACY_PROFILES_PATH}" 2>/dev/null)
+    legacy_default_profile=$(cd "${BASE_PATH}" && ls .ovh* access.rules 2>/dev/null)
+
+    if [ -n "${legacy_profiles}" ] || [ -n "${legacy_default_profile}" ]; then
+      # notify about migration to new location:
+      _echoWarning "Your profiles were in the legacy path, migrating to ${PROFILES_PATH} :"
+
+      if [ -n "${legacy_default_profile}" ]; then
+          _echoWarning "> migrating default profile:"
+          echo "${legacy_default_profile}"
+          mv ${BASE_PATH}/{.ovh*,access.rules} "${PROFILES_PATH}"
+      fi
+
+      if [ -n "${legacy_profiles}" ]; then
+          _echoWarning "> migrating custom profiles:"
+          echo "${legacy_profiles}"
+          mv ${LEGACY_PROFILES_PATH}/* "${PROFILES_PATH}"
+      fi
+
+    fi
   fi
 
   # if profile is not set, or with value 'default'
   if [[ -z "${profile}" ]] || [[ "${profile}" == "default" ]]
   then
-    # configuration stored in the script path
-    CURRENT_PATH="${BASE_PATH}"
+    # configuration stored in the profile main path
+    CURRENT_PATH="${PROFILES_PATH}"
   else
     # ensure profile directory exists
     if [ ! -d "${PROFILES_PATH}/${profile}" ]
