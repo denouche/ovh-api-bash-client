@@ -45,30 +45,30 @@ OvhRequestApi()
 
   local client_response=
   local cmd_profile=
-  local cmd=(${OVHAPI_BASHCLIENT_BIN})
+  local cmd=("${OVHAPI_BASHCLIENT_BIN}")
 
   ## construct arguments array
   if [ -n "${OVHAPI_BASHCLIENT_PROFILE}" ]; then
-    cmd+=(--profile ${OVHAPI_BASHCLIENT_PROFILE})
+    cmd+=(--profile "${OVHAPI_BASHCLIENT_PROFILE}")
   fi
   cmd_profile=${cmd[*]}
 
   if [ -n "${url}" ]; then
-    cmd+=(--url ${url})
+    cmd+=(--url "${url}")
   fi
 
   if [ -n "${method}" ]; then
-    cmd+=(--method ${method})
+    cmd+=(--method "${method}")
   fi
 
   if [ -n "${OVHAPI_TARGET}" ]; then
-    cmd+=(--target ${OVHAPI_TARGET})
+    cmd+=(--target "${OVHAPI_TARGET}")
   fi
 
   if [ "${method}" == "POST" ]; then
       # double-quote data content for bash input
       data=$(printf "%q" "${data}")
-      cmd+=(--data ${data})
+      cmd+=(--data "${data}")
   fi
 
   _ovhapilib_echo_debug "command: ${cmd[*]}"
