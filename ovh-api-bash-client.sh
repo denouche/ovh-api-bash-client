@@ -51,21 +51,43 @@ _echoWarning()
   echo >&2 "[WARNING] $*"
 }
 
+# join alements of an array with a separator (single char)
+# usage:
+# _arrayJoin "|" "${my_array[@]}"
+#
+_arrayJoin()
+{
+    local IFS="$1"
+    shift
+    echo "$*"
+}
+
+_StringToLower()
+{
+  echo "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+_StringToUpper()
+{
+  echo "$1" | tr '[:lower:]' '[:upper:]'
+}
+
 isTargetValid()
 {
+    local VALID
     VALID=0
-    for i in ${TARGETS[@]}
+    for i in ${TARGETS[*]}
     do
-        if [ $i == "$TARGET" ]
+        if [ "$i" == "${TARGET}" ]
         then
             VALID=1
             break
         fi
     done
 
-    if [ $VALID -eq 0 ]
+    if [ ${VALID} -eq 0 ]
     then
-        echo "Error: $TARGET is not a valid target, accepted values are: ${TARGETS[@]}"
+        echo "Error: ${TARGET} is not a valid target, accepted values are: ${TARGETS[*]}"
         echo
         help
         exit 1
@@ -74,40 +96,42 @@ isTargetValid()
 
 createApp()
 {
+    local NEXT
 
-    echo "For which OVH API do you want to create a new API Application? ($( echo ${TARGETS[@]} | sed 's/\s/|/g' ))"
-    while [ -z "$NEXT" ]
+    echo "For which OVH API do you want to create a new API Application? ($( _arrayJoin "|" "${TARGETS[@]}"))"
+    while [ -z "${NEXT}" ]
     do
-        read NEXT
+        read -r NEXT
     done
-    TARGET=$( echo $NEXT | tr [:lower:] [:upper:] )
+    TARGET=$( _StringToUpper "${NEXT}" )
     isTargetValid
 
     echo
-    echo -e "In order to create an API Application, please visit the link below:\n${API_CREATE_APP_URLS[$TARGET]}"
+    echo -e "In order to create an API Application, please visit the link below:\\n${API_CREATE_APP_URLS[${TARGET}]}"
     echo
     echo "Once your application is created, we will configure this script for this application"
     echo -n "Enter the Application Key: "
-    read OVH_APP_KEY
+    read -r OVH_APP_KEY
     echo -n "Enter the Application Secret: "
-    read OVH_APP_SECRET
+    read -r OVH_APP_SECRET
     echo "OK!"
-    echo "These informations will be stored in the following file: $CURRENT_PATH/${OVH_APPLICATION_FILE}_${TARGET}"
-    echo -e "${OVH_APP_KEY}\n${OVH_APP_SECRET}" > $CURRENT_PATH/${OVH_APPLICATION_FILE}_${TARGET}
+    echo "These informations will be stored in the following file: ${CURRENT_PATH}/${OVH_APPLICATION_FILE}_${TARGET}"
+    echo -e "${OVH_APP_KEY}\\n${OVH_APP_SECRET}" > "${CURRENT_PATH}/${OVH_APPLICATION_FILE}_${TARGET}"
 
     echo
     echo "Do you also need to create a consumer key? (y/n)"
-    read NEXT
-    if [ -n "$NEXT" ] && [ $( echo $NEXT | tr [:upper:] [:lower:] ) = y ]
+    read -r NEXT
+    if [ -n "${NEXT}" ] && [ "$( _StringToLower "${NEXT}")" == "y" ]
     then
         createConsumerKey
     else
-        echo -e "OK, no consumer key created for now.\nYou will be able to initalize the consumer key later calling :\n${HELP_CMD} --init"
+        echo -e "OK, no consumer key created for now.\\nYou will be able to initalize the consumer key later calling :\\n${HELP_CMD} --init"
     fi
 }
 
 createConsumerKey()
 {
+    local ANSWER
 
     METHOD="POST"
     URL="/auth/credential"
@@ -123,26 +147,25 @@ createConsumerKey()
 
     ANSWER=$(requestNoAuth)
 
-    getJSONFieldString "$ANSWER" 'consumerKey' > $CURRENT_PATH/${CONSUMER_KEY_FILE}_${TARGET}
-    echo -e "In order to validate the generated consumerKey, visit the validation url at:\n$(getJSONFieldString "$ANSWER" 'validationUrl')"
+    getJSONFieldString "${ANSWER}" 'consumerKey' > "${CURRENT_PATH}/${CONSUMER_KEY_FILE}_${TARGET}"
+    echo "In order to validate the generated consumerKey, visit the validation url at:"
+    getJSONFieldString "${ANSWER}" 'validationUrl'
 }
 
 initConsumerKey()
 {
-    cat $CURRENT_PATH/${CONSUMER_KEY_FILE}_${TARGET} &> /dev/null
-    if [ $? -eq 0 ]
+    if cat "${CURRENT_PATH}/${CONSUMER_KEY_FILE}_${TARGET}" &> /dev/null;
     then
-        OVH_CONSUMER_KEY="$(cat $CURRENT_PATH/${CONSUMER_KEY_FILE}_${TARGET})"
+        OVH_CONSUMER_KEY="$(cat "${CURRENT_PATH}/${CONSUMER_KEY_FILE}_${TARGET}")"
     fi
 }
 
 initApplication()
 {
-    cat $CURRENT_PATH/${OVH_APPLICATION_FILE}_${TARGET} &> /dev/null
-    if [ $? -eq 0 ]
+    if cat "${CURRENT_PATH}/${OVH_APPLICATION_FILE}_${TARGET}" &> /dev/null;
     then
-        OVH_APP_KEY=$(sed -n 1p $CURRENT_PATH/${OVH_APPLICATION_FILE}_${TARGET})
-        OVH_APP_SECRET=$(sed -n 2p $CURRENT_PATH/${OVH_APPLICATION_FILE}_${TARGET})
+        OVH_APP_KEY=$(sed -n 1p "${CURRENT_PATH}/${OVH_APPLICATION_FILE}_${TARGET}")
+        OVH_APP_SECRET=$(sed -n 2p "${CURRENT_PATH}/${OVH_APPLICATION_FILE}_${TARGET}")
     fi
 }
 
@@ -153,8 +176,9 @@ updateTime()
 
 updateSignData()
 {
-    SIGDATA="$OVH_APP_SECRET+$OVH_CONSUMER_KEY+$1+${API_URLS[$TARGET]}$2+$3+$TIME"
-    SIG='$1$'$(echo -n $SIGDATA | sha1sum - | cut -d' ' -f1)
+    local SIGDATA
+    SIGDATA="${OVH_APP_SECRET}+${OVH_CONSUMER_KEY}+$1+${API_URLS[${TARGET}]}$2+$3+${TIME}"
+    SIG="\$1\$"$(echo -n "${SIGDATA}" | sha1sum - | cut -d' ' -f1)
 }
 
 help()
@@ -164,7 +188,7 @@ help()
     echo "  --url <url>             : the API URL to call, for example /domains (default is /me)"
     echo "  --method <method>       : the HTTP method to use, for example POST (default is GET)"
     echo "  --data <JSON data>      : the data body to send with the request"
-    echo "  --target <$( echo ${TARGETS[@]} | sed 's/\s/|/g' )>        : the target API (default is EU)"
+    echo "  --target <$( _arrayJoin "|" "${TARGETS[@]}")>        : the target API (default is EU)"
     echo "  --init                  : to initialize the consumer key, and manage custom access rules file"
     echo "  --initApp               : to initialize the API application"
     echo "  --list-profile          : list available profiles in ~/.ovh-api-bash-client/profile directory"
@@ -183,14 +207,14 @@ buildAccessRules()
 
   if [ ! -f "${access_rules_file}" ]; then
     echo "${access_rules_file} missing, created full access rules"
-    echo -e "GET /*\nPUT /*\nPOST /*\nDELETE /*" > "${CURRENT_PATH}/access.rules"
+    echo -e "GET /*\\nPUT /*\\nPOST /*\\nDELETE /*" > "${CURRENT_PATH}/access.rules"
   fi
 
-  echo -e "Current rules for that profile\n"
+  echo -e "Current rules for that profile\\n"
   cat "${access_rules_file}"
-  echo -e "\nDo you need to customize this rules ?"
-  read -n1 -p  "(y/n)> " answer
-  echo -e "\n"
+  echo -e "\\nDo you need to customize this rules ?"
+  read -n1 -r -p  "(y/n)> " answer
+  echo -e "\\n"
 
   case ${answer} in
     [Yy]) echo "Operation canceled, please edit ${access_rules_file}"; exit;;
@@ -270,25 +294,44 @@ parseArguments()
 requestNoAuth()
 {
     updateTime
-    curl -s -X $METHOD --header 'Content-Type:application/json;charset=utf-8' --header "X-Ovh-Application:$OVH_APP_KEY" --header "X-Ovh-Timestamp:$TIME" --data "$POST_DATA" ${API_URLS[$TARGET]}$URL
+    curl -s -X "${METHOD}" \
+        --header 'Content-Type:application/json;charset=utf-8' \
+        --header "X-Ovh-Application:${OVH_APP_KEY}" \
+        --header "X-Ovh-Timestamp:${TIME}" \
+        --data "${POST_DATA}" \
+        "${API_URLS[${TARGET}]}${URL}"
 }
 
 request()
 {
+    local RESPONSE RESPONSE_STATUS RESPONSE_CONTENT
+
     updateTime
-    updateSignData "$METHOD" "$URL" "$POST_DATA"
-    RESPONSE=$(curl -s -w "\n%{http_code}\n" -X $METHOD --header 'Content-Type:application/json;charset=utf-8' --header "X-Ovh-Application:$OVH_APP_KEY" --header "X-Ovh-Timestamp:$TIME" --header "X-Ovh-Signature:$SIG" --header "X-Ovh-Consumer:$OVH_CONSUMER_KEY" --data "$POST_DATA" ${API_URLS[$TARGET]}$URL)
-    RESPONSE_STATUS=$(echo "$RESPONSE" | sed -n '$p')
-    RESPONSE_CONTENT=$(echo "$RESPONSE" | sed '$d')
-    echo "$RESPONSE_STATUS $RESPONSE_CONTENT"
+    updateSignData "${METHOD}" "${URL}" "${POST_DATA}"
+
+    RESPONSE=$(curl -s -w "\\n%{http_code}\\n" -X "${METHOD}" \
+    --header 'Content-Type:application/json;charset=utf-8' \
+    --header "X-Ovh-Application:${OVH_APP_KEY}" \
+    --header "X-Ovh-Timestamp:${TIME}" \
+    --header "X-Ovh-Signature:${SIG}" \
+    --header "X-Ovh-Consumer:${OVH_CONSUMER_KEY}" \
+    --data "${POST_DATA}" \
+    "${API_URLS[${TARGET}]}${URL}")
+
+    RESPONSE_STATUS=$(echo "${RESPONSE}" | sed -n '$p')
+    RESPONSE_CONTENT=$(echo "${RESPONSE}" | sed '$d')
+    echo "${RESPONSE_STATUS} ${RESPONSE_CONTENT}"
 }
 
 getJSONFieldString()
 {
+    local JSON FIELD RESULT
+
     JSON="$1"
     FIELD="$2"
-    RESULT=$(echo $JSON | $BASE_PATH/$LIBS/JSON.sh | grep "\[\"$FIELD\"\]" | sed -r "s/\[\"$FIELD\"\]\s+(.*)/\1/")
-    echo ${RESULT:1:${#RESULT}-2}
+    # shellcheck disable=SC1117
+    RESULT=$(echo "${JSON}" | "${BASE_PATH}/${LIBS}/JSON.sh" | grep "\[\"${FIELD}\"\]" | sed -r "s/\[\"${FIELD}\"\]\s+(.*)/\1/")
+    echo "${RESULT:1:${#RESULT}-2}"
 }
 
 # set CURRENT_PATH with profile name
@@ -320,13 +363,13 @@ initProfile()
       if [ -n "${legacy_default_profile}" ]; then
           _echoWarning "> migrating default profile:"
           echo "${legacy_default_profile}"
-          mv ${BASE_PATH}/{.ovh*,access.rules} "${PROFILES_PATH}"
+          mv "${BASE_PATH}"/{.ovh*,access.rules} "${PROFILES_PATH}"
       fi
 
       if [ -n "${legacy_profiles}" ]; then
           _echoWarning "> migrating custom profiles:"
           echo "${legacy_profiles}"
-          mv ${LEGACY_PROFILES_PATH}/* "${PROFILES_PATH}"
+          mv "${LEGACY_PROFILES_PATH}"/* "${PROFILES_PATH}"
       fi
 
     fi
@@ -371,8 +414,8 @@ listProfile()
 
   if [ -d "${PROFILES_PATH}" ]
   then
-        # only list directory
-    for dir in $(cd ${PROFILES_PATH} && ls -d */ 2>/dev/null)
+    # only list directory
+    for dir in $(cd "${PROFILES_PATH}" && ls -d -- */ 2>/dev/null)
     do
       # display directory name without slash
       echo "- ${dir%%/}"
@@ -383,9 +426,9 @@ listProfile()
 # ensure OVH App Key an App Secret are defined
 hasOvhAppKey()
 {
-    if [ -z "$OVH_APP_KEY" ] && [ -z "$OVH_APP_SECRET" ]
+    if [ -z "${OVH_APP_KEY}" ] && [ -z "${OVH_APP_SECRET}" ]
     then
-        echo -e "No application is defined for target $TARGET, please call to initialize it:\n${HELP_CMD} --initApp"
+        echo -e "No application is defined for target ${TARGET}, please call to initialize it:\\n${HELP_CMD} --initApp"
         return 1
     fi
     return 0
@@ -402,7 +445,7 @@ main()
         profileAction="set"
     fi
 
-    initProfile ${profileAction} ${PROFILE}
+    initProfile "${profileAction}" "${PROFILE}"
 
     # user want to add An API Key
     case ${INIT_KEY_ACTION} in
@@ -417,10 +460,11 @@ main()
 
     if hasOvhAppKey
     then
-      if [ -z "$OVH_CONSUMER_KEY" ]; then
-        echo -e "No consumer key for target $TARGET, please call to initialize it:\n${HELP_CMD} --init"
+      if [ -z "${OVH_CONSUMER_KEY}" ]; then
+        echo "No consumer key for target ${TARGET}, please call to initialize it:"
+        echo "${HELP_CMD} --init"
       else
-        request $METHOD $URL
+        request "${METHOD}" "${URL}"
       fi
     fi
 }
