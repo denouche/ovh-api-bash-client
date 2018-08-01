@@ -9,15 +9,17 @@ CONSUMER_KEY_FILE=".ovhConsumerKey"
 OVH_APPLICATION_FILE=".ovhApplication"
 LIBS="libs"
 
-TARGETS=(CA EU)
+TARGETS=(CA EU US)
 
 declare -A API_URLS
 API_URLS[CA]="https://ca.api.ovh.com/1.0"
 API_URLS[EU]="https://api.ovh.com/1.0"
+API_URLS[US]="https://api.ovhcloud.com/1.0"
 
 declare -A API_CREATE_APP_URLS
 API_CREATE_APP_URLS[CA]="https://ca.api.ovh.com/createApp/"
 API_CREATE_APP_URLS[EU]="https://api.ovh.com/createApp/"
+API_CREATE_APP_URLS[US]="https://api.ovhcloud.com/createApp/"
 
 ## https://gist.github.com/TheMengzor/968e5ea87e99d9c41782
 # resolve $SOURCE until the file is no longer a symlink
