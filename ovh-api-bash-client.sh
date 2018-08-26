@@ -1,15 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # DEFAULT CONFIG
 OVH_CONSUMER_KEY=""
 OVH_APP_KEY=""
 OVH_APP_SECRET=""
 
-CONSUMER_KEY_FILE=".ovhConsumerKey"
-OVH_APPLICATION_FILE=".ovhApplication"
-LIBS="libs"
+readonly CONSUMER_KEY_FILE=".ovhConsumerKey"
+readonly OVH_APPLICATION_FILE=".ovhApplication"
+readonly LIBS="libs"
 
-TARGETS=(CA EU US)
+readonly TARGETS=(CA EU US)
 
 declare -A API_URLS
 API_URLS[CA]="https://ca.api.ovh.com/1.0"
@@ -21,10 +21,13 @@ API_CREATE_APP_URLS[CA]="https://ca.api.ovh.com/createApp/"
 API_CREATE_APP_URLS[EU]="https://api.ovh.com/createApp/"
 API_CREATE_APP_URLS[US]="https://api.ovhcloud.com/createApp/"
 
+readonly API_URLS
+readonly API_CREATE_APP_URLS
+
 ## https://gist.github.com/TheMengzor/968e5ea87e99d9c41782
 # resolve $SOURCE until the file is no longer a symlink
 SOURCE="${BASH_SOURCE[0]}"
-while [ -h "${SOURCE}" ]
+while [[ -h "${SOURCE}" ]]
 do
   DIR="$( cd -P "$( dirname "${SOURCE}" )" && pwd )"
   SOURCE="$(readlink "${SOURCE}")"
@@ -34,19 +37,10 @@ do
 done
 BASE_PATH=$( cd -P "$( dirname "${SOURCE}" )" && pwd )
 
-LEGACY_PROFILES_PATH="${BASE_PATH}/profile"
-PROFILES_PATH="${HOME}/.ovh-api-bash-client/profile"
+readonly LEGACY_PROFILES_PATH="${BASE_PATH}/profile"
+readonly PROFILES_PATH="${HOME}/.ovh-api-bash-client/profile"
 
 HELP_CMD="$0"
-
-# THESE VARS WILL BE USED LATER
-METHOD="GET"
-URL="/me"
-TARGET="EU"
-TIME=""
-SIGDATA=""
-POST_DATA=""
-PROFILE=""
 
 _echoWarning()
 {
@@ -74,38 +68,38 @@ _StringToUpper()
   echo "$1" | tr '[:lower:]' '[:upper:]'
 }
 
+# verify if an array contains an item
+# _in_array "wanted" "${array[@]}"
+# _in_array "wanted_key" "${!array[@]}"
+_in_array()
+{
+    local item wanted
+    wanted="$1"
+    shift
+    for item; do
+        [[ "${item}" == "${wanted}" ]] && return 0
+    done
+    return 1
+}
+
 isTargetValid()
 {
-    local VALID
-    VALID=0
-    for i in ${TARGETS[*]}
-    do
-        if [ "$i" == "${TARGET}" ]
-        then
-            VALID=1
-            break
-        fi
-    done
-
-    if [ ${VALID} -eq 0 ]
-    then
-        echo "Error: ${TARGET} is not a valid target, accepted values are: ${TARGETS[*]}"
-        echo
-        help
+    if ! _in_array "${TARGET}" "${TARGETS[@]}"; then
+        help "'${TARGET}' is not a valid target, accepted values are: ${TARGETS[*]}"
         exit 1
     fi
 }
 
 createApp()
 {
-    local NEXT
+    local answer
 
     echo "For which OVH API do you want to create a new API Application? ($( _arrayJoin "|" "${TARGETS[@]}"))"
-    while [ -z "${NEXT}" ]
+    while [[ -z "${answer}" ]]
     do
-        read -r NEXT
+        read -r answer
     done
-    TARGET=$( _StringToUpper "${NEXT}" )
+    TARGET=$( _StringToUpper "${answer}" )
     isTargetValid
 
     echo
@@ -122,50 +116,44 @@ createApp()
 
     echo
     echo "Do you also need to create a consumer key? (y/n)"
-    read -r NEXT
-    if [ -n "${NEXT}" ] && [ "$( _StringToLower "${NEXT}")" == "y" ]
-    then
+    read -r answer
+    if [[ -n "${answer}" ]] && [[ "$( _StringToLower "${answer}")" == "y" ]]; then
         createConsumerKey
     else
-        echo -e "OK, no consumer key created for now.\\nYou will be able to initalize the consumer key later calling :\\n${HELP_CMD} --init"
+        echo -e "OK, no consumer key created for now.\\nYou will be able to initalize the consumer key later calling:\\n${HELP_CMD} --init"
     fi
 }
 
 createConsumerKey()
 {
-    local ANSWER
-
-    METHOD="POST"
-    URL="/auth/credential"
+    local answer
 
     # ensure an OVH App key is set
     initApplication
     hasOvhAppKey || exit 1
 
     # condition keeped for retro-compatibility, to always allow post accessRules from --data
-    if [ -z "${POST_DATA}" ]; then
+    if [[ -z "${POST_DATA}" ]]; then
       buildAccessRules
     fi
 
-    ANSWER=$(requestNoAuth)
+    answer=$(requestNoAuth "POST" "/auth/credential")
 
-    getJSONFieldString "${ANSWER}" 'consumerKey' > "${CURRENT_PATH}/${CONSUMER_KEY_FILE}_${TARGET}"
+    getJSONFieldString "${answer}" 'consumerKey' > "${CURRENT_PATH}/${CONSUMER_KEY_FILE}_${TARGET}"
     echo "In order to validate the generated consumerKey, visit the validation url at:"
-    getJSONFieldString "${ANSWER}" 'validationUrl'
+    getJSONFieldString "${answer}" 'validationUrl'
 }
 
 initConsumerKey()
 {
-    if cat "${CURRENT_PATH}/${CONSUMER_KEY_FILE}_${TARGET}" &> /dev/null;
-    then
+    if cat "${CURRENT_PATH}/${CONSUMER_KEY_FILE}_${TARGET}" &> /dev/null; then
         OVH_CONSUMER_KEY="$(cat "${CURRENT_PATH}/${CONSUMER_KEY_FILE}_${TARGET}")"
     fi
 }
 
 initApplication()
 {
-    if cat "${CURRENT_PATH}/${OVH_APPLICATION_FILE}_${TARGET}" &> /dev/null;
-    then
+    if cat "${CURRENT_PATH}/${OVH_APPLICATION_FILE}_${TARGET}" &> /dev/null; then
         OVH_APP_KEY=$(sed -n 1p "${CURRENT_PATH}/${OVH_APPLICATION_FILE}_${TARGET}")
         OVH_APP_SECRET=$(sed -n 2p "${CURRENT_PATH}/${OVH_APPLICATION_FILE}_${TARGET}")
     fi
@@ -173,31 +161,44 @@ initApplication()
 
 updateTime()
 {
-    TIME=$(date '+%s')
+    # use OVH API's timestamp instead of user's one to bypass misconfigured host.
+    curl -s "${API_URL}/auth/time"
 }
 
+# usage:
+# updateSignData "method" "url" "post_data" "timestamp"
+# return: print signature
 updateSignData()
 {
-    local SIGDATA
-    SIGDATA="${OVH_APP_SECRET}+${OVH_CONSUMER_KEY}+$1+${API_URLS[${TARGET}]}$2+$3+${TIME}"
-    SIG="\$1\$"$(echo -n "${SIGDATA}" | sha1sum - | cut -d' ' -f1)
+    local sig_data
+    local method=$1
+    local url=$2
+    local post_data=$3
+    local timestamp=$4
+
+    sig_data="${OVH_APP_SECRET}+${OVH_CONSUMER_KEY}+${method}+${API_URL}${url}+${post_data}+${timestamp}"
+    echo "\$1\$$(echo -n "${sig_data}" | sha1sum - | cut -d' ' -f1)"
 }
 
 help()
 {
-    echo
-    echo "Help: possible arguments are:"
-    echo "  --url <url>             : the API URL to call, for example /domains (default is /me)"
-    echo "  --method <method>       : the HTTP method to use, for example POST (default is GET)"
-    echo "  --data <JSON data>      : the data body to send with the request"
-    echo "  --target <$( _arrayJoin "|" "${TARGETS[@]}")>        : the target API (default is EU)"
-    echo "  --init                  : to initialize the consumer key, and manage custom access rules file"
-    echo "  --initApp               : to initialize the API application"
-    echo "  --list-profile          : list available profiles in ~/.ovh-api-bash-client/profile directory"
-    echo "  --profile <value>"
-    echo "            * default : from ~/.ovh-api-bash-client/profile directory"
-    echo "            * <dir>   : from ~/.ovh-api-bash-client/profile/<dir> directory"
-    echo
+  # print error message if set
+  [[ -n "$1" ]] && echo -e "Error: $1\\n"
+
+cat <<EOF
+Help: possible arguments are:
+  --url <url>             : the API URL to call, for example /domains (default is /me)
+  --method <method>       : the HTTP method to use, for example POST (default is GET)
+  --data <JSON data>      : the data body to send with the request
+  --target <target>       : the target API [$( _arrayJoin "|" "${TARGETS[@]}")] (default is EU)
+  --init                  : to initialize the consumer key, and manage custom access rules file
+  --initApp               : to initialize the API application
+  --list-profile          : list available profiles in ~/.ovh-api-bash-client/profile directory
+  --profile <profile>
+            * default : from ~/.ovh-api-bash-client/profile directory
+            * <dir>   : from ~/.ovh-api-bash-client/profile/<dir> directory
+
+EOF
 }
 
 buildAccessRules()
@@ -207,7 +208,7 @@ buildAccessRules()
   local json_rules
   local answer
 
-  if [ ! -f "${access_rules_file}" ]; then
+  if [[ ! -f "${access_rules_file}" ]]; then
     echo "${access_rules_file} missing, created full access rules"
     echo -e "GET /*\\nPUT /*\\nPOST /*\\nDELETE /*" > "${CURRENT_PATH}/access.rules"
   fi
@@ -226,12 +227,12 @@ buildAccessRules()
 
   while read -r method path;
   do
-    if [ -n "${method}" ] && [ -n "${path}" ]; then
+    if [[ -n "${method}" ]] && [[ -n "${path}" ]]; then
       json_rules+='{ "method": "'${method}'", "path": "'${path}'"},'
     fi
   done < "${access_rules_file}"
   json_rules=${json_rules::-1}
-  if [ -z "${json_rules}" ]; then
+  if [[ -z "${json_rules}" ]]; then
     echoWarning "no rule defined, please verify your file '${access_rules_file}'"
     exit 1
   fi
@@ -244,7 +245,7 @@ parseArguments()
     # an action launched out of this function
     INIT_KEY_ACTION=
 
-    while [ $# -gt 0 ]
+    while [[ $# -gt 0 ]]
     do
         case $1 in
         --data)
@@ -283,8 +284,7 @@ parseArguments()
             exit 0
             ;;
         *)
-            echo "Unknow parameter $1"
-            help
+            help "Unknow parameter $1"
             exit 0
             ;;
         esac
@@ -293,82 +293,88 @@ parseArguments()
 
 }
 
+# usage:
+# requestNoAuth "method" "url"
 requestNoAuth()
 {
-    updateTime
-    curl -s -X "${METHOD}" \
+    local method=$1
+    local url=$2
+
+    local timestamp
+    timestamp=$(updateTime)
+
+    curl -s -X "${method}" \
         --header 'Content-Type:application/json;charset=utf-8' \
         --header "X-Ovh-Application:${OVH_APP_KEY}" \
-        --header "X-Ovh-Timestamp:${TIME}" \
+        --header "X-Ovh-Timestamp:${timestamp}" \
         --data "${POST_DATA}" \
-        "${API_URLS[${TARGET}]}${URL}"
+        "${API_URL}${url}"
 }
 
 request()
 {
-    local RESPONSE RESPONSE_STATUS RESPONSE_CONTENT
+    local response response_status response_content sig timestamp
 
-    updateTime
-    updateSignData "${METHOD}" "${URL}" "${POST_DATA}"
+    timestamp=$(updateTime)
+    sig=$(updateSignData "${METHOD}" "${URL}" "${POST_DATA}" "${timestamp}")
 
-    RESPONSE=$(curl -s -w "\\n%{http_code}\\n" -X "${METHOD}" \
+    response=$(curl -s -w '\n%{http_code}\n' -X "${METHOD}" \
     --header 'Content-Type:application/json;charset=utf-8' \
     --header "X-Ovh-Application:${OVH_APP_KEY}" \
-    --header "X-Ovh-Timestamp:${TIME}" \
-    --header "X-Ovh-Signature:${SIG}" \
+    --header "X-Ovh-Timestamp:${timestamp}" \
+    --header "X-Ovh-Signature:${sig}" \
     --header "X-Ovh-Consumer:${OVH_CONSUMER_KEY}" \
     --data "${POST_DATA}" \
-    "${API_URLS[${TARGET}]}${URL}")
+    "${API_URL}${URL}")
 
-    RESPONSE_STATUS=$(echo "${RESPONSE}" | sed -n '$p')
-    RESPONSE_CONTENT=$(echo "${RESPONSE}" | sed '$d')
-    echo "${RESPONSE_STATUS} ${RESPONSE_CONTENT}"
+    response_status=$(echo "${response}" | sed -n '$p')
+    response_content=$(echo "${response}" | sed '$d')
+    echo "${response_status} ${response_content}"
 }
 
 getJSONFieldString()
 {
-    local JSON FIELD RESULT
+    local json field result
 
-    JSON="$1"
-    FIELD="$2"
+    json="$1"
+    field="$2"
     # shellcheck disable=SC1117
-    RESULT=$(echo "${JSON}" | "${BASE_PATH}/${LIBS}/JSON.sh" | grep "\[\"${FIELD}\"\]" | sed -r "s/\[\"${FIELD}\"\]\s+(.*)/\1/")
-    echo "${RESULT:1:${#RESULT}-2}"
+    result=$(echo "${json}" | "${BASE_PATH}/${LIBS}/JSON.sh" | grep "\[\"${field}\"\]" | sed -r "s/\[\"${field}\"\]\s+(.*)/\1/")
+    echo "${result:1:${#result}-2}"
 }
 
 # set CURRENT_PATH with profile name
-# usage : initProfile |set|get] profile_name
-#  set : create the profile if missing
-#  get : raise an error if no profile with that name
+# usage: initProfile |set|get] profile_name
+#  set: create the profile if missing
+#  get: raise an error if no profile with that name
 initProfile()
 {
-  local createProfile=$1
+  local create_profile=$1
   local profile=$2
 
-  if [ ! -d "${PROFILES_PATH}" ]
-  then
+  if [[ ! -d "${PROFILES_PATH}" ]]; then
     mkdir -pv "${PROFILES_PATH}" || exit 1
   fi
 
   # checking if some profiles remains in legacy profile path
   local legacy_profiles=
   local legacy_default_profile=
-  if [ -d "${LEGACY_PROFILES_PATH}" ]; then
+  if [[ -d "${LEGACY_PROFILES_PATH}" ]]; then
     # is there any profile in legacy path ?
     legacy_profiles=$(ls -A "${LEGACY_PROFILES_PATH}" 2>/dev/null)
     legacy_default_profile=$(cd "${BASE_PATH}" && ls .ovh* access.rules 2>/dev/null)
 
-    if [ -n "${legacy_profiles}" ] || [ -n "${legacy_default_profile}" ]; then
+    if [[ -n "${legacy_profiles}" ]] || [[ -n "${legacy_default_profile}" ]]; then
       # notify about migration to new location:
-      _echoWarning "Your profiles were in the legacy path, migrating to ${PROFILES_PATH} :"
+      _echoWarning "Your profiles were in the legacy path, migrating to ${PROFILES_PATH}:"
 
-      if [ -n "${legacy_default_profile}" ]; then
+      if [[ -n "${legacy_default_profile}" ]]; then
           _echoWarning "> migrating default profile:"
           echo "${legacy_default_profile}"
           mv "${BASE_PATH}"/{.ovh*,access.rules} "${PROFILES_PATH}"
       fi
 
-      if [ -n "${legacy_profiles}" ]; then
+      if [[ -n "${legacy_profiles}" ]]; then
           _echoWarning "> migrating custom profiles:"
           echo "${legacy_profiles}"
           mv "${LEGACY_PROFILES_PATH}"/* "${PROFILES_PATH}"
@@ -378,15 +384,13 @@ initProfile()
   fi
 
   # if profile is not set, or with value 'default'
-  if [[ -z "${profile}" ]] || [[ "${profile}" == "default" ]]
-  then
+  if [[ -z "${profile}" ]] || [[ "${profile}" == "default" ]]; then
     # configuration stored in the profile main path
     CURRENT_PATH="${PROFILES_PATH}"
   else
     # ensure profile directory exists
-    if [ ! -d "${PROFILES_PATH}/${profile}" ]
-    then
-     case ${createProfile} in
+    if [[ ! -d "${PROFILES_PATH}/${profile}" ]]; then
+     case ${create_profile} in
         get)
           echo "${PROFILES_PATH}/${profile} should exists"
           listProfile
@@ -401,8 +405,7 @@ initProfile()
     CURRENT_PATH="$( cd "${PROFILES_PATH}/${profile}" && pwd )"
   fi
 
-  if [ -n "${profile}" ]
-  then
+  if [[ -n "${profile}" ]]; then
     HELP_CMD="${HELP_CMD} --profile ${profile}"
   fi
 
@@ -411,11 +414,10 @@ initProfile()
 listProfile()
 {
   local dir=
-  echo "Available profiles : "
+  echo "Available profiles: "
   echo "- default"
 
-  if [ -d "${PROFILES_PATH}" ]
-  then
+  if [[ -d "${PROFILES_PATH}" ]]; then
     # only list directory
     for dir in $(cd "${PROFILES_PATH}" && ls -d -- */ 2>/dev/null)
     do
@@ -428,8 +430,7 @@ listProfile()
 # ensure OVH App Key an App Secret are defined
 hasOvhAppKey()
 {
-    if [ -z "${OVH_APP_KEY}" ] && [ -z "${OVH_APP_SECRET}" ]
-    then
+    if [[ -z "${OVH_APP_KEY}" ]] && [[ -z "${OVH_APP_SECRET}" ]]; then
         echo -e "No application is defined for target ${TARGET}, please call to initialize it:\\n${HELP_CMD} --initApp"
         return 1
     fi
@@ -438,12 +439,20 @@ hasOvhAppKey()
 
 main()
 {
-
     parseArguments "$@"
+
+    # set to default value if empty
+    TARGET=${TARGET:-"EU"}
+    METHOD=${METHOD:-"GET"}
+    URL=${URL:-"/me"}
+    PROFILE=${PROFILE:-"default"}
+    POST_DATA=${POST_DATA:-}
+
+    readonly API_URL="${API_URLS[${TARGET}]}"
 
     local profileAction="get"
 
-    if [ -n "${INIT_KEY_ACTION}" ]; then
+    if [[ -n "${INIT_KEY_ACTION}" ]]; then
         profileAction="set"
     fi
 
@@ -455,14 +464,13 @@ main()
       ConsumerKey) createConsumerKey;;
     esac
     ## exit after initializing any API Keys
-    [ -n "${INIT_KEY_ACTION}" ] && exit 0
+    [[ -n "${INIT_KEY_ACTION}" ]] && exit 0
 
     initApplication
     initConsumerKey
 
-    if hasOvhAppKey
-    then
-      if [ -z "${OVH_CONSUMER_KEY}" ]; then
+    if hasOvhAppKey; then
+      if [[ -z "${OVH_CONSUMER_KEY}" ]]; then
         echo "No consumer key for target ${TARGET}, please call to initialize it:"
         echo "${HELP_CMD} --init"
       else
@@ -470,6 +478,5 @@ main()
       fi
     fi
 }
-
 
 main "$@"
