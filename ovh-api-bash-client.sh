@@ -162,7 +162,7 @@ initApplication()
 updateTime()
 {
     # use OVH API's timestamp instead of user's one to bypass misconfigured host.
-    curl -s "${API_URL}${url}/auth/time"
+    curl -s "${API_URL}/auth/time"
 }
 
 # usage:
