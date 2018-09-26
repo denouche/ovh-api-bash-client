@@ -65,7 +65,7 @@ OvhRequestApi()
     cmd+=(--target "${OVHAPI_TARGET}")
   fi
 
-  if [ "${method}" == "POST" ]; then
+  if [ "${method}" == "POST" ] || [ "${method}" == "PUT" ]; then
       # double-quote data content for bash input
       data=$(printf "%q" "${data}")
       cmd+=(--data "${data}")
