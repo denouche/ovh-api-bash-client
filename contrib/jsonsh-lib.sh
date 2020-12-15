@@ -114,7 +114,7 @@ _JSonSH_rewrite_output()
 
        ## Actions on json key :
        # 1) remove some chars : brackets and double quotes
-       gsub(/\[|\]|\"/,"",json_key)
+       gsub(/\[|\]|"/,"",json_key)
        # 2) detect array index between comma, put digits between brackets
        json_key = gensub(/(,([[:digit:]]+)(,|))/,"[\\2]\\3","g",json_key)
        # 3) replace each comma with dot
