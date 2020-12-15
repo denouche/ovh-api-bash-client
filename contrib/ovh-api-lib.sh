@@ -54,6 +54,8 @@ OvhRequestApi()
   cmd_profile=${cmd[*]}
 
   if [ -n "${url}" ]; then
+    # escape querystring arguments
+    url=$(printf "%q" "${url}")
     cmd+=(--url "${url}")
   fi
 
